@@ -9,7 +9,7 @@ opt = {
   nThreads = 32,        -- how many threads to pre-fetch data
   batchSize = 32,      -- self-explanatory
   loadSize = 128,       -- when loading images, resize first to this size
-  fineSize = 64,       -- crop this size from the loaded image 
+  fineSize = 64,       -- crop this size from the loaded image
   frameSize = 32,
   lr = 0.0002,          -- learning rate
   lr_decay = 1000,         -- how often to decay learning rate (in epoch's)
@@ -22,14 +22,14 @@ opt = {
   gpu = 1,              -- which GPU to use; consider using CUDA_VISIBLE_DEVICES instead
   cudnn = 1,            -- whether to use cudnn or not
   finetune = '',        -- if set, will load this network instead of starting from scratch
-  name = 'condbeach7',        -- the name of the experiment
+  name = 'condgolf7',        -- the name of the experiment
   randomize = 1,        -- whether to shuffle the data file or not
   cropping = 'random',  -- options for data augmentation
   display_port = 8000,  -- port to push graphs
   display_id = 1,       -- window ID when pushing graphs
   mean = {0,0,0},
-  data_root = '/data/vision/torralba/crossmodal/flickr_videos/',
-  data_list = '/data/vision/torralba/crossmodal/flickr_videos/scene_extract/lists-full/_b_beach.txt.train',
+  data_root = '/home/mschoi/workspace/videogan/data/golf-frames-stable/',
+  data_list = '/home/mschoi/workspace/videogan/data/golf.txt',
 }
 
 -- one-line argument parser. parses enviroment variables to override the defaults
@@ -55,7 +55,7 @@ print("Dataset: " .. opt.dataset, " Size: ", data:size())
 local net
 local netD
 local mask_net
-local motion_net 
+local motion_net
 local static_net
 if opt.finetune == '' then -- build network from scratch
   net = nn.Sequential()
@@ -104,7 +104,7 @@ if opt.finetune == '' then -- build network from scratch
   motion_net = nn.Sequential():add(nn.ConcatTable():add(nn.SelectTable(1))
                                                    :add(nn.Sequential():add(nn.SelectTable(2))
                                                                        :add(nn.Squeeze())
-                                                                       :add(nn.Replicate(3, 2)))) -- for color chan 
+                                                                       :add(nn.Replicate(3, 2)))) -- for color chan
                               :add(nn.CMulTable())
 
   -- static .* (1-mask) (then repmatted)
@@ -130,7 +130,7 @@ if opt.finetune == '' then -- build network from scratch
   netD:add(nn.VolumetricConvolution(512,1024, 4,4,4, 2,2,2, 1,1,1))
   netD:add(nn.VolumetricBatchNormalization(1024,1e-3)):add(nn.LeakyReLU(0.2, true))
   netD:add(nn.VolumetricConvolution(1024,2, 2,4,4, 1,1,1, 0,0,0))
-  netD:add(nn.View(2):setNumInputDims(4)) 
+  netD:add(nn.View(2):setNumInputDims(4))
 
   -- initialize the model
   local function weights_init(m)
@@ -266,7 +266,7 @@ local counter = 0
 local history = {}
 
 -- parameters for the optimization
--- very important: you must only create this table once! 
+-- very important: you must only create this table once!
 -- the optimizer will add fields to this table (such as momentum)
 local optimState = {
    learningRate = opt.lr,
@@ -281,7 +281,7 @@ local optimStateD = {
 for epoch = 1,opt.niter do -- for each epoch
   for i = 1, math.min(data:size(), opt.ntrain), opt.batchSize do -- for each mini-batch
     collectgarbage() -- necessary sometimes
-    
+
     tm:reset()
 
     -- do one iteration
@@ -292,7 +292,7 @@ for epoch = 1,opt.niter do -- for each epoch
       table.insert(history, {counter, err, errD, errReg})
       disp.plot(history, {win=opt.display_id+1, title=opt.name, labels = {"iteration", "err", "errD", "errR"}})
     end
-    
+
     if counter % 100 == 0 then
       local vis = net.output:float()
       local vis_tab = {}
@@ -307,7 +307,7 @@ for epoch = 1,opt.niter do -- for each epoch
       local vis = static_net.output:float()
       disp.image(vis, {win=opt.display_id+4, title=(opt.name .. ' static')})
 
-      local vis = mask_net.output:float():squeeze() 
+      local vis = mask_net.output:float():squeeze()
       local vis_lo = vis:min()
       local vis_hi = vis:max()
       local vis_tab = {}
@@ -315,7 +315,7 @@ for epoch = 1,opt.niter do -- for each epoch
       disp.image(torch.cat(vis_tab, 2), {win=opt.display_id+2, title=(opt.name .. ' mask ' .. string.format('%.2f %.2f', vis_lo, vis_hi))})
     end
     counter = counter + 1
-    
+
     print(('%s: Epoch: [%d][%8d / %8d]\t Time: %.3f  DataTime: %.3f  '
               .. '  Err: %.4f  ErrD: %.4f  ErrR: %.4f'):format(
             opt.name, epoch, ((i-1) / opt.batchSize),
@@ -334,7 +334,7 @@ for epoch = 1,opt.niter do -- for each epoch
       torch.save('checkpoints/' .. opt.name .. '/iter' .. counter .. '_history.t7', history)
     end
   end
-  
+
   -- decay the learning rate, if requested
   if opt.lr_decay > 0 and epoch % opt.lr_decay == 0 then
     opt.lr = opt.lr / 10
